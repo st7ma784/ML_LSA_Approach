@@ -76,7 +76,7 @@ class myLightningModule(LightningModule):
         #This inference steps of a foward pass of the model 
         return self.model(input)
     def hloss(self,A,B,Batchsize):
-        return self.loss(B,torch.arange(B.shape[0],device=self.device).unsqueeze(1).repeat(1,Batchsize))
+        return self.loss(B,torch.arange(B.shape[0],device=self.device).unsqueeze(1).repeat(1,Batchsize),)
     def wloss(self,A,B,Batchsize):
         return self.loss(A,torch.arange(A.shape[0],device=self.device).unsqueeze(1).repeat(1,Batchsize))
 
@@ -85,7 +85,6 @@ class myLightningModule(LightningModule):
         #By default, PTL handles optimization and scheduling and logging steps. so All you have to focus on is functionality. Here's an example...
         input,truth=batch[0],batch[1]
         out=self.forward(input)
-        MSE=self.MSELoss(out,truth)
         #print(torch.sum(out).item()/input.shape[0])
         #print(min(self.h,self.w))
         assert int(torch.sum(out).item()/input.shape[0])==min(self.h,self.w)
@@ -95,12 +94,17 @@ class myLightningModule(LightningModule):
         logitsB=logitsB.permute(1,2,0)
         # there IS merit to using both... but one will be far noisier than tother! 
         #maybe use scaler? 
-        loss=self.lossfn(logitsA,logitsB,input.shape[0])
-        auxloss=self.auxlossfn(logitsA,logitsB,input.shape[0])
+        auxloss=self.auxlossfn(logitsA.clone().detach(),logitsB.clone().detach(),input.shape[0])
+        MSE=self.MSELoss(out.clone().detach(),truth)
+
         self.log("auxloss",auxloss,prog_bar=True)
         self.log("MSE",MSE, prog_bar=True)
+
+
+        loss=self.lossfn(logitsA,logitsB,input.shape[0])
+        
         self.log('train_loss', loss, prog_bar=True)
-        return {'loss': loss,"MSE":MSE}
+        return {'loss': loss}
       
 
         
