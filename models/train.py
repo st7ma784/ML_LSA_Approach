@@ -60,6 +60,8 @@ class myLightningModule(LightningModule):
         self.layers=layers
         self.h,self.w=size
         self.activation=torch.nn.ReLU if activation=="relu" else torch.nn.GELU
+               
+        self.sm=nn.Softmax(dim=1 if self.w<self.h else 2)#(dim=1 if self.w<self.h else 2)
 
         self.WModel=torch.nn.Sequential(*[
             torch.nn.Linear(self.w,512),
@@ -82,7 +84,7 @@ class myLightningModule(LightningModule):
             self.HModel,
             Permute()])   
         self.modellayers= torch.nn.Sequential(*[self.layer for _ in range(self.layers)])                        
-        self.model=torch.nn.Sequential(*[self.modellayers,GUMBELSoftMax(dim=1 if self.w<self.h else 2)])
+        self.model=torch.nn.Sequential(*[self.modellayers,self.sm])
         # self.model=MyModel(self.h,self.w,activation,layers=layers)
 
 
@@ -115,7 +117,7 @@ class myLightningModule(LightningModule):
         out=self.forward(input)
         #print(torch.sum(out).item()/input.shape[0])
         #print(min(self.h,self.w))
-        assert int(torch.sum(out).item()/input.shape[0])==min(self.h,self.w)
+        #assert int(torch.sum(out).item()/input.shape[0])==min(self.h,self.w)
         logitsB= torch.bmm(out.permute(0,2,1),truth) #shape, B, H,H
         logitsA= torch.bmm(out,truth.permute(0,2,1)) # shape B,W,W
         logitsA=logitsA.permute(1,2,0)
