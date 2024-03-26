@@ -6,7 +6,7 @@ class baseparser(HyperOptArgumentParser):
         super().__init__( *args,strategy=strategy, add_help=False) # or random search
         # self.add_argument("--dir",default="/nobackup/projects/<YOURBEDEPROJECT>/$USER/data",type=str)
         # self.add_argument("--log_path",default="/nobackup/projects/<YOURBEDEPROJECT>/$USER/logs/",type=str)
-        self.opt_list("--learning_rate", default=0.0001, type=float, options=[2e-4,1e-4,5e-5,1e-5,4e-6], tunable=True)
+        self.opt_list("--learning_rate", default=0.0001, type=float, options=[2e-4,1e-4,5e-3,1e-2,4e-4], tunable=True)
         self.opt_list("--batch_size", default=100, type=int)
         
         #INSERT YOUR OWN PARAMETERS HERE

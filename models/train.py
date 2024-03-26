@@ -19,6 +19,27 @@ class GUMBELSoftMax(nn.Module):
     def forward(self, x):
         return torch.nn.functional.gumbel_softmax(x,dim=self.dim,hard=True)
 
+class MyModel(nn.Module):
+    def __init__(self,h,w,activation,layers):
+        super().__init__()
+
+        self.transformerW=torch.nn.TransformerEncoderLayer(w,1,dim_feedforward=4*w,activation=activation,batch_first=True)
+        self.transformerH=torch.nn.TransformerEncoderLayer(h,1,dim_feedforward=4*h,activation=activation,batch_first=True)
+        self.perm=Permute()
+        self.sm=GUMBELSoftMax(dim=1 if w<h else 2)
+        self.softmax=nn.Softmax(dim=1)
+        layer=[torch.nn.TransformerEncoderLayer(w,1,dim_feedforward=4*w,activation=activation,batch_first=True),
+               Permute(),
+               torch.nn.TransformerEncoderLayer(h,1,dim_feedforward=4*h,activation=activation,batch_first=True),
+               Permute(),
+               nn.Softmax(dim=1 if w<h else 2)
+               ]*layers
+        self.model=nn.Sequential(*layer)
+    def forward(self,x):
+        x=self.model(x)
+        return self.sm(x)        
+
+
 class myLightningModule(LightningModule):
     '''
     This training code follows the standard structure of Pytorch - lighthning. It's worth looking at their docs for a more in depth dive as to why it is this was
@@ -39,6 +60,7 @@ class myLightningModule(LightningModule):
         self.layers=layers
         self.h,self.w=size
         self.activation=torch.nn.ReLU if activation=="relu" else torch.nn.GELU
+
         self.WModel=torch.nn.Sequential(*[
             torch.nn.Linear(self.w,512),
             self.activation(),
@@ -61,6 +83,9 @@ class myLightningModule(LightningModule):
             Permute()])   
         self.modellayers= torch.nn.Sequential(*[self.layer for _ in range(self.layers)])                        
         self.model=torch.nn.Sequential(*[self.modellayers,GUMBELSoftMax(dim=1 if self.w<self.h else 2)])
+        # self.model=MyModel(self.h,self.w,activation,layers=layers)
+
+
 
         print("h,w is {}".format((self.h,self.w)))
         
