@@ -1,5 +1,7 @@
 # Use the pytorch base image
 FROM pytorch/pytorch:latest
+RUN apt-get -y update
+RUN apt-get -y install git
 
 # Copy the requirements.txt file to the container
 COPY requirements.txt /app/requirements.txt
@@ -14,4 +16,6 @@ WORKDIR /app
 COPY . /app
 
 # Run the launch command with the num_trials -1 flag
-CMD ["python", "Launch.py", "--dir /data","--annotations /data/annotations","--log_path \data\logs", "--num_trials -1"]
+
+#use ENTRYPOINT to run the command
+CMD ["python", "launch.py", "--dir","/data", "--num_trials","-1"]
