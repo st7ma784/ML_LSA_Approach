@@ -16,8 +16,8 @@ class baseparser(HyperOptArgumentParser):
         #self.opt_range('--neurons',default=50, type=int, tunable=True, low=100, high=800, nb_samples=8, log_base=None)
         self.opt_list("--activation",default="relu",type=str,options=["relu","gelu"],tunable=True)
         self.opt_list("--layers",default=2,type=int,options=[0,1,2,3,4,5],tunable=True)
-        self.opt_list("--h",default=5,type=int,options=[11,22,33,44,55],tunable=True)
-        self.opt_list("--w",default=7,type=int,options=[12,24,36,48,60],tunable=True)
+        self.opt_list("--h",default=5,type=int,options=[11,22,33,44,55,66],tunable=True)
+        self.opt_list("--w",default=7,type=int,options=[12,24,36,48,60,84],tunable=True)
         self.opt_list("--optimizer",default="AdamW",type=str,options=["AdamW","RAdam"],tunable=True)
         #This is important when passing arguments as **config in launcher
         self.argNames=["dir","log_path","w","h","learning_rate","batch_size","optimizer","modelname","activation","layers","accelerator","num_trials"]
@@ -39,6 +39,7 @@ class parser(baseparser):
 
 
     def generate_wandb_trials(self,entity,project):
+        wandb.login(key='9cf7e97e2460c18a89429deed624ec1cbfb537bc')
         api = wandb.Api()
 
         runs = api.runs(entity + "/" + project)
