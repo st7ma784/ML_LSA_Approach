@@ -9,29 +9,17 @@ def train(config={
          "codeversion":"-1",        
     },dir=None,devices=None,accelerator=None,Dataset=None,logtool=None):
     
-    #### EDIT HERE FOR DIFFERENT VERSIONS OF A MODEL
-     if codeversion==1:
-        from models.train import myLightningModule
-    elif codeversion==2:
-        from models.trainv2 import myLightningModule
-    elif codeversion==3:
-        from models.trainv3 import myLightningModule
-    elif codeversion==4:
-        from models.trainv4 import myLightningModule
-    elif codeversion==5:
-        from models.trainv5 import myLightningModule
-    elif codeversion==6:
-        from models.trainv6 import myLightningModule
-    else:
-        print("NO CODE VER SPECIFIED!!")
-        from models.train import myLightningModule
+    from models.train import myLightningModule
 
-    model=myLightningModule(  **config)
+
+
+    size=(config.get("w",51),config.get("h",53))
+    model=myLightningModule(size=size,  **config)
     if dir is None:
         dir=config.get("dir",".")
     if Dataset is None:
-        from DataModule import *
-        Dataset=MyDataModule(Cache_dir=dir,**config)
+        from DataModule import myDataModule
+        Dataset=myDataModule(size=size,Cache_dir=dir,**config)
     if devices is None:
         devices=config.get("devices","auto")
     if accelerator is None:
@@ -40,12 +28,8 @@ def train(config={
     Dataset.batch_size=config["batch_size"]
     callbacks=[
         TQDMProgressBar(),
-        EarlyStopping(monitor="train_loss", mode="min",patience=10,check_finite=True,stopping_threshold=0.001),
+        EarlyStopping(monitor="train_loss", mode="min",patience=10,check_finite=True,stopping_threshold=0.0001),
     ]
-    p=config['precision']
-    if isinstance(p,str):
-        p=16 if p=="bf16" else int(p)  ##needed for BEDE
-    print("Launching with precision",p)
 
     #workaround for NCCL issues on windows 
     if sys.platform == "win32":
@@ -60,9 +44,8 @@ def train(config={
             strategy="ddp",
             num_nodes=int(os.getenv("SLURM_NNODES",1)),
             callbacks=callbacks,
-            gradient_clip_val=0.25,# Not supported for manual optimization
+            # gradient_clip_val=0.25,# Not supported for manual optimization
             fast_dev_run=False,
-            precision=p
     )
     if config["batch_size"] !=1:
         
@@ -73,17 +56,23 @@ def train(config={
 #### This is a wrapper to make sure we log with Weights and Biases, You'll need your own user for this. 
 def wandbtrain(config=None,dir=None,devices=None,accelerator=None,Dataset=None):
     if config is not None:
+        import wandb
         config=config.__dict__
         dir=config.get("dir",dir)
-        logtool= pytorch_lightning.loggers.WandbLogger( project="<PROJECTNAME>",entity="<WANDBUSER>", save_dir=dir)
+        wandb.login(key='9cf7e97e2460c18a89429deed624ec1cbfb537bc')
+        wandb.finish() # Finish any old runs
+        run=wandb.init(project="NNLSA",entity="st7ma784",name="CNNLSAScore",config=config)
+
+        logtool= pytorch_lightning.loggers.WandbLogger( project="NNLSA",entity="st7ma784",experiment=run, save_dir=dir)
         print(config)
 
     else: 
         #We've got no config, so we'll just use the default, and hopefully a trainAgent has been passed
         import wandb
-        print("Would recommend changing projectname according to config flags if major version swithching happens")
-        run=wandb.init(project="<PROJECTNAME>",entity="<WANDBUSER>",name="<PROJECTNAME>",config=config)
-        logtool= pytorch_lightning.loggers.WandbLogger( project="<PROJECTNAME>",entity="<WANDBUSER>",experiment=run, save_dir=dir)
+        print("here")
+        wandb.login(key='9cf7e97e2460c18a89429deed624ec1cbfb537bc')
+        run=wandb.init(project="NNLSA",entity="st7ma784",name="CNNLSAScore",config=config)
+        logtool= pytorch_lightning.loggers.WandbLogger( project="NNLSA",entity="st7ma784",experiment=run, save_dir=dir)
         config=run.config.as_dict()
     
     train(config,dir,devices,accelerator,Dataset,logtool)
@@ -165,7 +154,7 @@ def __should_escape(v):
     v = str(v)
     return '[' in v or ';' in v or ' ' in v
 if __name__ == '__main__':
-    from argParser import parser
+    from demoparse import parser
     from subprocess import call
 
     myparser=parser()
@@ -181,7 +170,7 @@ if __name__ == '__main__':
 
     #OR To run with Default Args
     else: 
-        trials=myparser.generate_wandb_trials("st7ma784","Bertscore")
+        trials=myparser.generate_wandb_trials("st7ma784","NNLSA")
         #this generates a random trial NOT YET COMPLETED!
         if len(trials)==1:
 
@@ -195,8 +184,8 @@ if __name__ == '__main__':
         else:
             for i,trial in enumerate(trials):             
                 command=SlurmRun(trial)
-                os.makedirs(os.path.join(".","BERTSCORER"),exist_ok=True)
-                slurm_cmd_script_path =  os.path.join(".","BERTSCORER","slurm_cmdtrial{}.sh".format(i))
+                os.makedirs(os.path.join(".","NNLSA"),exist_ok=True)
+                slurm_cmd_script_path =  os.path.join(".","NNLSA","slurm_cmdtrial{}.sh".format(i))
 
                 with open(slurm_cmd_script_path, "w") as f:
                     f.write(command)

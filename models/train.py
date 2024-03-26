@@ -6,6 +6,18 @@ import torch
 from functools import partial
 from typing import Optional
 from warnings import warn
+class Permute(nn.Module):
+    def __init__(self):
+        super().__init__()
+    def forward(self, x):
+        return x.permute(0,2,1)
+
+class GUMBELSoftMax(nn.Module):
+    def __init__(self,dim=-1):
+        super().__init__()
+        self.dim=dim
+    def forward(self, x):
+        return torch.nn.functional.gumbel_softmax(x,dim=self.dim,hard=True)
 
 class myLightningModule(LightningModule):
     '''
@@ -13,7 +25,9 @@ class myLightningModule(LightningModule):
     '''
     
     def __init__(self,
-                learning_rate,
+                activation="relu",
+                size=(51,53),
+                layers=3,
                 **kwargs,
                 ):
 
@@ -22,42 +36,73 @@ class myLightningModule(LightningModule):
         self.loss=torch.nn.CrossEntropyLoss()
         self.MSELoss=torch.nn.MSELoss()
         #Define your own model here, 
-        self.model=torch.nn.Sequential(*[
-            torch.nn.Linear(50000,512),
-            torch.nn.Linear(512,256),
-            torch.nn.Linear(256,512),
-            torch.nn.Linear(512,40000)
+        self.layers=layers
+        self.h,self.w=size
+        self.activation=torch.nn.ReLU if activation=="relu" else torch.nn.GELU
+        self.WModel=torch.nn.Sequential(*[
+            torch.nn.Linear(self.w,512),
+            self.activation(),
+            torch.nn.Linear(512,self.w),
+            self.activation(),
+
         ])
+        self.HModel=torch.nn.Sequential(*[
+            torch.nn.Linear(self.h,512),
+            self.activation(),
+            torch.nn.Linear(512,self.h),
+            self.activation(),
+
+        ])
+
+        self.layer=torch.nn.Sequential(*[
+            self.WModel,
+            Permute(),
+            self.HModel,
+            Permute()])   
+        self.modellayers= torch.nn.Sequential(*[self.layer for _ in range(self.layers)])                        
+        self.model=torch.nn.Sequential(*[self.modellayers,GUMBELSoftMax(dim=1 if self.w<self.h else 2)])
+
+        print("h,w is {}".format((self.h,self.w)))
+        
+        self.lossfn,self.auxlossfn=(self.hloss,self.wloss) if self.h>self.w else (self.wloss,self.hloss)
+        #this is done so the main loss fn has a definite one in every column, aux loss has some ones in some columns. 
+
+
+
+
+
+
     def forward(self,input):
         #This inference steps of a foward pass of the model 
         return self.model(input)
+    def hloss(self,A,B,Batchsize):
+        return self.loss(B,torch.arange(B.shape[0],device=self.device).unsqueeze(1).repeat(1,Batchsize))
+    def wloss(self,A,B,Batchsize):
+        return self.loss(A,torch.arange(A.shape[0],device=self.device).unsqueeze(1).repeat(1,Batchsize))
 
-    def training_step(self, batch, batch_idx,optimizer_idx=0):
+    def training_step(self, batch, batch_idx):
         #The batch is collated for you, so just seperate it here and calculate loss. 
         #By default, PTL handles optimization and scheduling and logging steps. so All you have to focus on is functionality. Here's an example...
         input,truth=batch[0],batch[1]
         out=self.forward(input)
         MSE=self.MSELoss(out,truth)
-        
-        logitsA= torch.bmm(input,out.permute(0,2,1)) #shape, B, H,H
-        logitsB= torch.bmm(input.permute(0,2,1),out) # shape B,W,W
+        #print(torch.sum(out).item()/input.shape[0])
+        #print(min(self.h,self.w))
+        assert int(torch.sum(out).item()/input.shape[0])==min(self.h,self.w)
+        logitsB= torch.bmm(out.permute(0,2,1),truth) #shape, B, H,H
+        logitsA= torch.bmm(out,truth.permute(0,2,1)) # shape B,W,W
         logitsA=logitsA.permute(1,2,0)
         logitsB=logitsB.permute(1,2,0)
-        
-        lossA=self.loss(logitsA,torch.arange(logitsA.shape[0]))
-        lossB=self.loss(logitsB,torch.arange(logitsB.shape[0]))
-        loss=lossA+lossB
-        loss=loss/2
-        self.log("MSE",MSE, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        return loss
+        # there IS merit to using both... but one will be far noisier than tother! 
+        #maybe use scaler? 
+        loss=self.lossfn(logitsA,logitsB,input.shape[0])
+        auxloss=self.auxlossfn(logitsA,logitsB,input.shape[0])
+        self.log("auxloss",auxloss,prog_bar=True)
+        self.log("MSE",MSE, prog_bar=True)
+        self.log('train_loss', loss, prog_bar=True)
+        return {'loss': loss,"MSE":MSE}
       
-      
-    def validation_step(self, batch, batch_idx):
-      
-        input,desired=batch[0],batch[1]
-        out=self.forward(input)
-        #You could log here the val_loss, or just print something. 
+
         
     def configure_optimizers(self):
         #Automatically called by PL. So don't worry about calling it yourself. 
