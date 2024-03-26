@@ -10,7 +10,7 @@ def outputconversion(func): #converts the output of a function back to 1-hot ten
         func=kwargs.pop("func")
         args=list(args)
         x=args.pop(0)
-        output=torch.zeros_like(x)
+        output=torch.zeros_like(x) + 1e-8
 
         x1,y1=func(x, *args, **kwargs)
         try:
