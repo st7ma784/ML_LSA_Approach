@@ -145,7 +145,7 @@ class myLightningModule(LightningModule):
         #you'll notice that everything from the init function is stored under the self.hparams object
         if self.hparams.optimizer=="AdamW": 
             optimizerA = torch.optim.AdamW( 
-            self.parameters(), lr=self.hparams.learning_rate,)# eps=1e-8)
+            self.parameters(), lr=self.hparams.learning_rate, eps=1e-8)
         elif self.hparams.optimizer=="RAdam":
             optimizerA = torch.optim.RAdam( 
             self.parameters(), lr=self.hparams.learning_rate,)# eps=1e-8)
