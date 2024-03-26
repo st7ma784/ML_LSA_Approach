@@ -107,9 +107,7 @@ class myLightningModule(LightningModule):
 
 
         loss,P=self.lossfn(logitsA,logitsB,input.shape[0])
-        self.log('precision',P,prog_bar=True )
-        self.log('train_loss', loss, prog_bar=True)
-        return {'loss': loss,}
+        return {'loss': loss,'P':P}
       
 
         
