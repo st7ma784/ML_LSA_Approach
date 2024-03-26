@@ -28,7 +28,7 @@ def train(config={
     Dataset.batch_size=config["batch_size"]
     callbacks=[
         TQDMProgressBar(),
-        EarlyStopping(monitor="train_loss", mode="min",patience=10,check_finite=True,stopping_threshold=0.0001),
+        EarlyStopping(monitor="precision", mode="max",patience=10,check_finite=True,stopping_threshold=0.8),
     ]
 
     #workaround for NCCL issues on windows 

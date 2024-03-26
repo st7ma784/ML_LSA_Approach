@@ -76,10 +76,10 @@ class myLightningModule(LightningModule):
         #This inference steps of a foward pass of the model 
         return self.model(input)
     def hloss(self,A,B,Batchsize):
-        P=torch.mean(torch.diagonal(B,dim1=1,dim2=2))
+        P=torch.mean(torch.diagonal(B,dim1=0,dim2=1))
         return self.loss(B,torch.arange(B.shape[0],device=self.device).unsqueeze(1).repeat(1,Batchsize)),P
     def wloss(self,A,B,Batchsize):
-        P=torch.mean(torch.diagonal(A,dim1=1,dim2=2))
+        P=torch.mean(torch.diagonal(A,dim1=0,dim2=1))
 
         return self.loss(A,torch.arange(A.shape[0],device=self.device).unsqueeze(1).repeat(1,Batchsize)),P
 
@@ -107,15 +107,22 @@ class myLightningModule(LightningModule):
 
 
         loss,P=self.lossfn(logitsA,logitsB,input.shape[0])
-        return {'loss': loss,'P':P}
+        self.log('precision',P,prog_bar=True )
+        self.log('train_loss', loss,enable_graph=False, prog_bar=True)
+        return {'loss': loss,}
       
 
         
     def configure_optimizers(self):
         #Automatically called by PL. So don't worry about calling it yourself. 
-        #you'll notice that everything from the init function is stored under the self.hparams object 
-        optimizerA = torch.optim.AdamW(
-            self.parameters(), lr=self.hparams.learning_rate, eps=1e-8)
-        
+        #you'll notice that everything from the init function is stored under the self.hparams object
+        if self.hparams.optimizer=="AdamW": 
+            optimizerA = torch.optim.AdamW( 
+            self.parameters(), lr=self.hparams.learning_rate,)# eps=1e-8)
+        elif self.hparams.optimizer=="RAdam":
+            optimizerA = torch.optim.RAdam( 
+            self.parameters(), lr=self.hparams.learning_rate,)# eps=1e-8)
+        else:
+            raise("Optim not implemented")
         #Define scheduler here too if needed. 
         return [optimizerA]
