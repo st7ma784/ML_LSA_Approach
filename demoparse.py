@@ -11,7 +11,7 @@ class baseparser(HyperOptArgumentParser):
         
         #INSERT YOUR OWN PARAMETERS HERE
 
-        self.opt_list("--accelerator", default='gpu', type=str, options=['gpu'], tunable=False)
+        self.opt_list("--accelerator", default='auto', type=str, options=['auto'], tunable=False)
         self.opt_list("--num_trials", default=0, type=int, tunable=False)
         #self.opt_range('--neurons',default=50, type=int, tunable=True, low=100, high=800, nb_samples=8, log_base=None)
         self.opt_list("--activation",default="relu",type=str,options=["relu","gelu"],tunable=True)
