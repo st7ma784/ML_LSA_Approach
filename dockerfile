@@ -18,4 +18,4 @@ COPY . /app
 # Run the launch command with the num_trials -1 flag
 
 #use ENTRYPOINT to run the command
-CMD ["python", "Launch.py", "--dir","/data", "--num_trials","-1"]
+CMD ["python", "Launch.py", "--num_trials","-1"]
