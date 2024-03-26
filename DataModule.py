@@ -48,40 +48,25 @@ class myDataset(torch.utils.data.Dataset):
 class myDataModule(pl.LightningDataModule):
     ## This dataModule takes care of downloading the data per node and then PL may replace the sampler if doing distributed multi-node training. 
     ## Some settings here may be worth editing if on a machine where Pin memory, or workers are limited. 
-    def __init__(self, Cache_dir='./', T=None, batch_size=256):
+    def __init__(self, Cache_dir='./', size=(53,51), batch_size=256):
         super().__init__()
         self.data_dir = Cache_dir
+        self.size=size
         self.ann_dir=os.path.join(self.data_dir,"annotations")
         self.batch_size = batch_size
         self.T=T
         self.splits={"train":[],"val":[],"test":[]}
         
     def train_dataloader(self):
-        if not hasattr(self, 'train'):
-            if os.path.exists("train.pt"):
-                self.train=torch.load("train.pt")
-            else:
-                self.download_data()
+
         # IF you know that you're only ever using 1 gpu (HEC /local runs only...) then consider using https://lightning-bolts.readthedocs.io/en/latest/dataloaders/async.html
-        return torch.utils.data.DataLoader(self.train, batch_size=self.batch_size, shuffle=True, num_workers=4, prefetch_factor=4, pin_memory=True,drop_last=True)
+        return torch.utils.data.DataLoader(myDataset(self.size), batch_size=self.batch_size, shuffle=True, num_workers=4, prefetch_factor=4, pin_memory=True,drop_last=True)
     def val_dataloader(self):
-        if not hasattr(self, 'val'):
-            #check if esprevalidation.pt exists in the directory
-            if os.path.exists("val.pt"):
-                self.val_dataset=torch.load("val.pt")
-            else:
-                self.download_data()
-        return torch.utils.data.DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=True, num_workers=4, prefetch_factor=4, pin_memory=True,drop_last=True)
+     
+        return torch.utils.data.DataLoader(myDataset(self.size), batch_size=self.batch_size, shuffle=True, num_workers=4, prefetch_factor=4, pin_memory=True,drop_last=True)
     def test_dataloader(self):
-        if not hasattr(self, 'test'):
-            #check for espretest.pt in the directory
-            if os.path.exists("test.pt"):
-                self.test=torch.load("test.pt")
-            else:
 
-                self.download_data()
-
-        return torch.utils.data.DataLoader(self.test, batch_size=self.batch_size, shuffle=True, num_workers=4, prefetch_factor=4, pin_memory=True,drop_last=True)
+        return torch.utils.data.DataLoader(myDataset(self.size), batch_size=self.batch_size, shuffle=True, num_workers=4, prefetch_factor=4, pin_memory=True,drop_last=True)
     def prepare_data(self):
       
     def setup(self, stage=None):
