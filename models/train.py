@@ -98,7 +98,8 @@ class myLightningModule(LightningModule):
         if model=="linear":
             self.model=MyDNNModel(self.h,self.w,softmax=softmax,activation=activation,layers=layers)
         elif model in get_all_LSA_fns():
-            self.model=get_all_LSA_fns()[model]
+            self.training_step=self.test_step
+            self.alg=get_all_LSA_fns()[model]
 
         self.precisionfn=self.convert_null
         if precision=="e5m2":
@@ -133,7 +134,37 @@ class myLightningModule(LightningModule):
         P=torch.mean(torch.diagonal(A,dim1=0,dim2=1))
 
         return self.loss(A,torch.diag_embed(torch.ones(A.shape[0],device=self.device)).unsqueeze(-1).repeat(1,1,Batchsize)),P
+    def test_step(self, batch, batch_idx):
+        #The batch is collated for you, so just seperate it here and calculate loss. 
+        #By default, PTL handles optimization and scheduling and logging steps. so All you have to focus on is functionality. Here's an example...
+        input,truth=batch[0],batch[1]
+        with torch.no_grad():
+            input=self.precisionfn(input)
+        
+            out=torch.stack([self.alg(i) for i in input],dim=0)
+            
+        
+            logitsB= torch.bmm(out.permute(0,2,1),truth) #shape, B, H,H
+            logitsA= torch.bmm(out,truth.permute(0,2,1)) # shape B,W,W
+            logitsA=logitsA.permute(1,2,0)
+            logitsB=logitsB.permute(1,2,0)
+            # there IS merit to using both... but one will be far noisier than tother! 
+            #maybe use scaler? 
+            
+            auxloss,R=self.auxlossfn(logitsA.clone().detach(),logitsB.clone().detach(),input.shape[0])
+            MSE=self.MSELoss(out.clone().detach(),truth)
+            self.log("auxp",R,prog_bar=True)
 
+            self.log("auxloss",auxloss,prog_bar=True)
+            self.log("MSE",MSE, prog_bar=True)
+
+
+            loss,P=self.lossfn(logitsA,logitsB,input.shape[0])
+            F1=2* P*R /P+R
+            self.log('F1',F1,prog_bar=True)
+            self.log('precision',P,prog_bar=True )
+            self.log('train_loss', loss,enable_graph=False, prog_bar=True)
+        return  None 
     def training_step(self, batch, batch_idx):
         #The batch is collated for you, so just seperate it here and calculate loss. 
         #By default, PTL handles optimization and scheduling and logging steps. so All you have to focus on is functionality. Here's an example...
