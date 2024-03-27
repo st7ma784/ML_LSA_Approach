@@ -63,9 +63,9 @@ def get_all_LSA_fns():
         #outputconversion(no_for_loop_v2_triu_MyLinearSumAssignment),
         #outputconversion(no_for_loop_v3_MyLinearSumAssignment),
         #outputconversion(no_for_loop_v3_triu_MyLinearSumAssignment),
-        "recursive fn":outputconversion(recursiveLinearSumAssignment),
-        "recursive fn2 ":outputconversion(recursiveLinearSumAssignment_v2),
-        "recursive fn5":outputconversion(recursiveLinearSumAssignment_v5),
+        "recursive fn":recursiveLinearSumAssignment,
+        "recursive fn2 ":recursiveLinearSumAssignment_v2,
+        "recursive fn5":recursiveLinearSumAssignment_v5,
         #outputconversion(recursiveLinearSumAssignment_v3),
         #outputconversion(recursiveLinearSumAssignment_v4),
         "stock":outputconversion(stock_lsa),
@@ -389,10 +389,9 @@ def recursiveLinearSumAssignment(rewards:torch.Tensor,maximize=True,factor=0.8):
     for i in range(10):
         cost=reduceLinearSumAssignment(rewards,cost_neg,next_highest_fn,(removeHHB,removeBBH),dim=bigdim)
         rewards=rewards - (cost/factor)
-    col_index=final_fn(rewards,dim=bigdim)
-    #return torch.arange(rewards.shape[0],device=rewards.device),col_index
-    output=(torch.arange(rewards.shape[small_dim],device=rewards.device),col_index) if small_dim==1 else (col_index,torch.arange(rewards.shape[small_dim],device=rewards.device))
-    return output
+    return rewards
+
+
 def recursiveLinearSumAssignment_grad(rewards:torch.Tensor,maximize=True,factor=0.8):
     cost_neg,next_highest_fn,comb_fn,final_fn=((torch.tensor(float('inf')),torch.min,torch.add,torch.argmin),(torch.tensor(float('-inf')),torch.max,torch.sub,torch.argmax))[maximize] 
 
@@ -420,12 +419,8 @@ def recursiveLinearSumAssignment_v2(rewards:torch.Tensor,maximize=True,factor=1)
     for i in range(min(rewards.shape[-2:])):
         cost2=reduceLinearSumAssignment_v2(rewards,maximize=maximize)
         rewards=rewards- (cost2/factor)# can remove
-    col_index=final_fn(rewards,dim=bigdim)
-        #return torch.arange(rewards.shape[0],device=rewards.device),col_index
-    # logging.warning("small dim"+str(small_dim))
-    output=(torch.arange(rewards.shape[small_dim],device=rewards.device),col_index) if small_dim==1 else (col_index,torch.arange(rewards.shape[small_dim],device=rewards.device))
-    return output
-def recursiveLinearSumAssignment_v5(rewards:torch.Tensor,maximize=True,factor=10):
+    return rewards
+def recursiveLinearSumAssignment_v5(rewards:torch.Tensor,maximize=True,factor=2):
     #create tensor of ints
     output=torch.zeros_like(rewards,dtype=torch.int8)
     #print("out1")
@@ -443,14 +438,12 @@ def recursiveLinearSumAssignment_v5(rewards:torch.Tensor,maximize=True,factor=10
         cost2=reduceLinearSumAssignment_v2(rewards,maximize=maximize)
         rewards=rewards- (cost2/factor)# can remove
     
-    #draw(output)
-    #draw(rewards)
     cutoff=torch.topk(rewards.flatten(),rewards.shape[small_dim]+1,largest=maximize,sorted=True).values[-1]
     if maximize:
         output[(rewards>cutoff)]=1
     else:
         output[(rewards<cutoff)]=1
-    return output.nonzero(as_tuple=True)
+    return output
 
 
 def recursiveLinearSumAssignment_v3(rewards:torch.Tensor,maximize=True,factor=1):
@@ -467,10 +460,7 @@ def recursiveLinearSumAssignment_v3(rewards:torch.Tensor,maximize=True,factor=1)
         #draw(rewards.cpu())
         #? why is this suggested??? rewards,_,_=torch.svd(rewards)
         #rewards=rewards ** (rewards-cost/factor) #times here makes it very spiky! 
-    col_index=final_fn(rewards,dim=dim)
-        #x,y=torch.arange(rewards.shape[0],device=rewards.device),col_index    
-        
-    return torch.arange(rewards.shape[0],device=rewards.device),col_index
+    return rewards
 
 def recursiveLinearSumAssignment_v4(rewards:torch.Tensor,maximize=True,factor=1):
     final_fn=torch.argmax if maximize else torch.argmin
