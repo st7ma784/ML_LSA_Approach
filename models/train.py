@@ -112,7 +112,7 @@ class myLightningModule(LightningModule):
         if model=="linear":
             self.model=MyDNNModel(self.h,self.w,softmax=softmax,activation=activation,layers=layers)
         elif model in get_all_LSA_fns():
-            self.model=MyLSAModel(model)
+            self.model=MyLSAModel(self.h,self.w,softmax=softmax,model=model)
             self.max_epochs=1
         self.precisionfn=self.convert_null
         if precision=="e5m2":
