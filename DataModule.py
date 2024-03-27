@@ -31,7 +31,7 @@ class myDataset(torch.utils.data.Dataset):
         return 100000
     def __getitem__(self, index: int):
         array=torch.rand(self.w,self.h)
-        truth=LSA(array)
+        truth=LSA(array,maximize=True)
         return array,truth
 
 

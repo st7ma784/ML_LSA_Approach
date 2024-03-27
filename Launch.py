@@ -41,7 +41,7 @@ def train(config={
             max_epochs=200,
             #profiler="advanced",
             logger=logtool,
-            strategy="ddp_find_unused_parameters_true",
+            strategy="ddp",#_find_unused_parameters_true",
             num_nodes=int(os.getenv("SLURM_NNODES",1)),
             callbacks=callbacks,
             # gradient_clip_val=0.25,# Not supported for manual optimization
@@ -61,9 +61,9 @@ def wandbtrain(config=None,dir=None,devices=None,accelerator=None,Dataset=None):
         dir=config.get("dir",dir)
         wandb.login(key='9cf7e97e2460c18a89429deed624ec1cbfb537bc')
         wandb.finish() # Finish any old runs
-        run=wandb.init(project="NNLSA",entity="st7ma784",name="CNNLSAScore",config=config)
+        run=wandb.init(project="NNLSAFP8",entity="st7ma784",name="CNNLSAFP8Score",config=config)
 
-        logtool= pytorch_lightning.loggers.WandbLogger( project="NNLSA",entity="st7ma784",experiment=run, save_dir=dir)
+        logtool= pytorch_lightning.loggers.WandbLogger( project="NNLSAFP8",entity="st7ma784",experiment=run, save_dir=dir)
         print(config)
 
     else: 
@@ -71,8 +71,8 @@ def wandbtrain(config=None,dir=None,devices=None,accelerator=None,Dataset=None):
         import wandb
         print("here")
         wandb.login(key='9cf7e97e2460c18a89429deed624ec1cbfb537bc')
-        run=wandb.init(project="NNLSA",entity="st7ma784",name="CNNLSAScore",config=config)
-        logtool= pytorch_lightning.loggers.WandbLogger( project="NNLSA",entity="st7ma784",experiment=run, save_dir=dir)
+        run=wandb.init(project="NNLSAFP8",entity="st7ma784",name="CNNLSAScore",config=config)
+        logtool= pytorch_lightning.loggers.WandbLogger( project="NNLSAFP8",entity="st7ma784",experiment=run, save_dir=dir)
         config=run.config.as_dict()
     
     train(config,dir,devices,accelerator,Dataset,logtool)
@@ -170,7 +170,7 @@ if __name__ == '__main__':
 
     #OR To run with Default Args
     else: 
-        trials=myparser.generate_wandb_trials("st7ma784","NNLSA")
+        trials=myparser.generate_wandb_trials("st7ma784","NNLSAFP8")
         #this generates a random trial NOT YET COMPLETED!
         if len(trials)==1:
 
@@ -184,8 +184,8 @@ if __name__ == '__main__':
         else:
             for i,trial in enumerate(trials):             
                 command=SlurmRun(trial)
-                os.makedirs(os.path.join(".","NNLSA"),exist_ok=True)
-                slurm_cmd_script_path =  os.path.join(".","NNLSA","slurm_cmdtrial{}.sh".format(i))
+                os.makedirs(os.path.join(".","NNLSAFP8"),exist_ok=True)
+                slurm_cmd_script_path =  os.path.join(".","NNLSAFP8","slurm_cmdtrial{}.sh".format(i))
 
                 with open(slurm_cmd_script_path, "w") as f:
                     f.write(command)

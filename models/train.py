@@ -6,6 +6,7 @@ import torch
 from functools import partial
 from typing import Optional
 from warnings import warn
+from lsafunctions import *
 class Permute(nn.Module):
     def __init__(self):
         super().__init__()
@@ -19,14 +20,15 @@ class GUMBELSoftMax(nn.Module):
     def forward(self, x):
         return torch.nn.functional.gumbel_softmax(x,dim=self.dim,hard=True)
 
-class MyModel(nn.Module):
-    def __init__(self,h,w,activation,layers):
+class MyTrModel(nn.Module):
+    def __init__(self,h,w,softmax,activation,layers):
         super().__init__()
-
+        self.h,self.w=h,w
+        self.layers=layers
         self.transformerW=torch.nn.TransformerEncoderLayer(w,1,dim_feedforward=4*w,activation=activation,batch_first=True)
         self.transformerH=torch.nn.TransformerEncoderLayer(h,1,dim_feedforward=4*h,activation=activation,batch_first=True)
         self.perm=Permute()
-        self.sm=GUMBELSoftMax(dim=1 if w<h else 2)
+        self.sm=nn.Softmax(dim=1 if self.w<self.h else 2) if softmax=="softmax" else GUMBELSoftMax(dim=1 if self.w<self.h else 2)
         self.softmax=nn.Softmax(dim=1)
         layer=[torch.nn.TransformerEncoderLayer(w,1,dim_feedforward=4*w,activation=activation,batch_first=True),
                Permute(),
@@ -35,6 +37,34 @@ class MyModel(nn.Module):
                nn.Softmax(dim=1 if w<h else 2)
                ]*layers
         self.model=nn.Sequential(*layer)
+    def forward(self,x):
+        x=self.model(x)
+        return self.sm(x)        
+
+class MyDNNModel(nn.Module):
+    def __init__(self,h,w,softmax,activation,layers):
+        super().__init__()
+        self.h,self.w=h,w
+        self.layers=layers
+        self.activation=torch.nn.ReLU if activation=="relu" else torch.nn.GELU
+        self.sm=nn.Softmax(dim=1 if self.w<self.h else 2) if softmax=="softmax" else GUMBELSoftMax(dim=1 if self.w<self.h else 2)
+        self.model= torch.nn.Sequential(*[torch.nn.Sequential(*[
+            torch.nn.Sequential(*[
+                torch.nn.Linear(self.w,512),
+                self.activation(),
+                torch.nn.Linear(512,self.w),
+                self.activation(),
+
+            ]),
+            Permute(),
+            torch.nn.Sequential(*[
+                torch.nn.Linear(self.h,512),
+                self.activation(),
+                torch.nn.Linear(512,self.h),
+                self.activation(),
+                ]),
+            Permute()]) for _ in range(self.layers)])                        
+        
     def forward(self,x):
         x=self.model(x)
         return self.sm(x)        
@@ -48,7 +78,10 @@ class myLightningModule(LightningModule):
     def __init__(self,
                 activation="relu",
                 size=(51,53),
+                softmax="gumbel",
+                model="transformer",
                 layers=3,
+                precision="None",
                 **kwargs,
                 ):
 
@@ -59,33 +92,19 @@ class myLightningModule(LightningModule):
         #Define your own model here, 
         self.layers=layers
         self.h,self.w=size
-        self.activation=torch.nn.ReLU if activation=="relu" else torch.nn.GELU
-               
-        self.sm=nn.Softmax(dim=1 if self.w<self.h else 2)#(dim=1 if self.w<self.h else 2)
+        self.model=MyTrModel(self.h,self.w,softmax=softmax,activation=activation,layers=layers)
+        
+        
+        if model=="linear":
+            self.model=MyDNNModel(self.h,self.w,softmax=softmax,activation=activation,layers=layers)
+        elif model in get_all_LSA_fns():
+            self.model=get_all_LSA_fns()[model]
 
-        self.WModel=torch.nn.Sequential(*[
-            torch.nn.Linear(self.w,512),
-            self.activation(),
-            torch.nn.Linear(512,self.w),
-            self.activation(),
-
-        ])
-        self.HModel=torch.nn.Sequential(*[
-            torch.nn.Linear(self.h,512),
-            self.activation(),
-            torch.nn.Linear(512,self.h),
-            self.activation(),
-
-        ])
-
-        self.layer=torch.nn.Sequential(*[
-            self.WModel,
-            Permute(),
-            self.HModel,
-            Permute()])   
-        self.modellayers= torch.nn.Sequential(*[self.layer for _ in range(self.layers)])                        
-        self.model=torch.nn.Sequential(*[self.modellayers,self.sm])
-        # self.model=MyModel(self.h,self.w,activation,layers=layers)
+        self.precisionfn=self.convert_null
+        if precision=="e5m2":
+            self.precisionfn=self.convert_to_fp8_e5m2
+        elif precision=="e4m3":
+            self.precisionfn=self.convert_to_fp8_e4m3
 
 
 
@@ -98,7 +117,12 @@ class myLightningModule(LightningModule):
 
 
 
-
+    def convert_to_fp8_e5m2(self,T):
+        return T.to(torch.float8_e5m2).to(torch.float32)
+    def convert_to_fp8_e4m3(self,T):
+        return T.to(torch.float8_e4m3fn).to(torch.float32)
+    def convert_null(self,T):
+        return T
     def forward(self,input):
         #This inference steps of a foward pass of the model 
         return self.model(input)
@@ -114,10 +138,12 @@ class myLightningModule(LightningModule):
         #The batch is collated for you, so just seperate it here and calculate loss. 
         #By default, PTL handles optimization and scheduling and logging steps. so All you have to focus on is functionality. Here's an example...
         input,truth=batch[0],batch[1]
+
+        input=self.precisionfn(input)
+     
+
         out=self.forward(input)
-        #print(torch.sum(out).item()/input.shape[0])
-        #print(min(self.h,self.w))
-        #assert int(torch.sum(out).item()/input.shape[0])==min(self.h,self.w)
+     
         logitsB= torch.bmm(out.permute(0,2,1),truth) #shape, B, H,H
         logitsA= torch.bmm(out,truth.permute(0,2,1)) # shape B,W,W
         logitsA=logitsA.permute(1,2,0)
@@ -125,15 +151,17 @@ class myLightningModule(LightningModule):
         # there IS merit to using both... but one will be far noisier than tother! 
         #maybe use scaler? 
         with torch.no_grad():
-            auxloss,auxP=self.auxlossfn(logitsA.clone().detach(),logitsB.clone().detach(),input.shape[0])
+            auxloss,R=self.auxlossfn(logitsA.clone().detach(),logitsB.clone().detach(),input.shape[0])
             MSE=self.MSELoss(out.clone().detach(),truth)
-            self.log("auxp",auxP,prog_bar=True)
+            self.log("auxp",R,prog_bar=True)
 
             self.log("auxloss",auxloss,prog_bar=True)
             self.log("MSE",MSE, prog_bar=True)
 
 
         loss,P=self.lossfn(logitsA,logitsB,input.shape[0])
+        F1=2* P*R /P+R
+        self.log('F1',F1,prog_bar=True)
         self.log('precision',P,prog_bar=True )
         self.log('train_loss', loss,enable_graph=False, prog_bar=True)
         return {'loss': loss,}

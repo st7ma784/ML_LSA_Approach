@@ -1,4 +1,5 @@
 wandb 
 pytorch-lightning
 test_tube
-scikit-learn
+scipy
+git+https://github.com/pytorch-labs/float8_experimental.git
