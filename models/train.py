@@ -94,13 +94,13 @@ class myLightningModule(LightningModule):
         self.h,self.w=size
         self.model=MyTrModel(self.h,self.w,softmax=softmax,activation=activation,layers=layers)
         
-        
+        self.max_epochs=100
         if model=="linear":
             self.model=MyDNNModel(self.h,self.w,softmax=softmax,activation=activation,layers=layers)
         elif model in get_all_LSA_fns():
             self.training_step=self.test_step
             self.alg=get_all_LSA_fns()[model]
-
+            self.max_epochs=1
         self.precisionfn=self.convert_null
         if precision=="e5m2":
             self.precisionfn=self.convert_to_fp8_e5m2
