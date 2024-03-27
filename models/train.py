@@ -104,11 +104,11 @@ class myLightningModule(LightningModule):
         return self.model(input)
     def hloss(self,A,B,Batchsize):
         P=torch.mean(torch.diagonal(B,dim1=0,dim2=1))
-        return self.loss(B,torch.arange(B.shape[0],device=self.device).unsqueeze(1).repeat(1,Batchsize)),P
+        return self.loss(B,torch.diag_embed(torch.ones(B.shape[0],device=self.device)).unsqueeze(-1).repeat(1,1,Batchsize)),P
     def wloss(self,A,B,Batchsize):
         P=torch.mean(torch.diagonal(A,dim1=0,dim2=1))
 
-        return self.loss(A,torch.arange(A.shape[0],device=self.device).unsqueeze(1).repeat(1,Batchsize)),P
+        return self.loss(A,torch.diag_embed(torch.ones(A.shape[0],device=self.device)).unsqueeze(-1).repeat(1,1,Batchsize)),P
 
     def training_step(self, batch, batch_idx):
         #The batch is collated for you, so just seperate it here and calculate loss. 

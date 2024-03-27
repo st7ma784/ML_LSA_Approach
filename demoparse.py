@@ -17,6 +17,7 @@ class baseparser(HyperOptArgumentParser):
         self.opt_list("--activation",default="relu",type=str,options=["relu","gelu"],tunable=True)
         self.opt_list("--layers",default=2,type=int,options=[0,1,2,3,4,5],tunable=True)
         self.opt_list("--h",default=5,type=int,options=[11,22,33,44,55,66],tunable=True)
+        
         self.opt_list("--w",default=7,type=int,options=[12,24,36,48,60,84],tunable=True)
         self.opt_list("--optimizer",default="AdamW",type=str,options=["AdamW","RAdam"],tunable=True)
         #This is important when passing arguments as **config in launcher
