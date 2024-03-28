@@ -80,7 +80,7 @@ class MyLSAModel(nn.Module):
     def forward(self,x):
         
         out=torch.stack([self.alg(i,maximize=True) for i in x],dim=0)
-        out=out/out.norm(p=2,keepdim=True)
+        out=out/torch.norm(out,p=2,keepdim=True)
         out=out*self.bias
         return self.sm(out)
 
