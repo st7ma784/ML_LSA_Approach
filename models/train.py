@@ -80,7 +80,11 @@ class MyLSAModel(nn.Module):
     def forward(self,x):
         
         out=torch.stack([self.alg(i,maximize=True) for i in x],dim=0)
+        if out.shape==x.permute(0,2,1).shape:
+            out=out.permute(0,2,1)
+        out=torch.nan_to_num(out)
         out=out/torch.norm(out,p=2,keepdim=True)
+
         out=out*self.bias
         return self.sm(out)
 
@@ -140,39 +144,37 @@ class myLightningModule(LightningModule):
     def forward(self,input):
         #This inference steps of a foward pass of the model 
         return self.model(input)
-    def hloss(self,A,B,Batchsize):
-        P=torch.mean(torch.diagonal(B,dim1=0,dim2=1))
-        return self.loss(B,torch.diag_embed(torch.ones(B.shape[0],device=self.device)).unsqueeze(-1).repeat(1,1,Batchsize)),P
-    def wloss(self,A,B,Batchsize):
-        P=torch.mean(torch.diagonal(A,dim1=0,dim2=1))
+    def hloss(self,A,B):
+        P=torch.mean(torch.diagonal(B,dim1=1,dim2=2))
+        return self.loss(B,torch.diag_embed(torch.ones(B.shape[-1],device=self.device)).unsqueeze(0).repeat(B.shape[0],1,1)),P
+    def wloss(self,A,B):
+        P=torch.mean(torch.diagonal(A,dim1=1,dim2=2))
 
-        return self.loss(A,torch.diag_embed(torch.ones(A.shape[0],device=self.device)).unsqueeze(-1).repeat(1,1,Batchsize)),P
+        return self.loss(A,torch.diag_embed(torch.ones(A.shape[-1],device=self.device)).unsqueeze(0).repeat(A.shape[0],1,1)),P
   
     def training_step(self, batch, batch_idx):
         #The batch is collated for you, so just seperate it here and calculate loss. 
         #By default, PTL handles optimization and scheduling and logging steps. so All you have to focus on is functionality. Here's an example...
         input,truth=batch[0],batch[1]
-
         input=self.precisionfn(input)
      
 
         out=self.forward(input)
-     
+        
         logitsB= torch.bmm(out.permute(0,2,1),truth) #shape, B, H,H
         logitsA= torch.bmm(out,truth.permute(0,2,1)) # shape B,W,W
-        logitsA=logitsA.permute(1,2,0)
-        logitsB=logitsB.permute(1,2,0)
+
         # there IS merit to using both... but one will be far noisier than tother! 
         #maybe use scaler? 
         with torch.no_grad():
-            auxloss,R=self.auxlossfn(logitsA.clone().detach(),logitsB.clone().detach(),input.shape[0])
+            auxloss,R=self.auxlossfn(logitsA.clone().detach(),logitsB.clone().detach())
             MSE=self.MSELoss(out.clone().detach(),truth)
             self.log("auxp",R,prog_bar=True)
             self.log("auxloss",auxloss,prog_bar=True)
             self.log("MSE",MSE, prog_bar=True)
 
 
-        loss,P=self.lossfn(logitsA,logitsB,input.shape[0])
+        loss,P=self.lossfn(logitsA,logitsB)
         F1=2*( P*R) /(P+R)
         self.log('F1',F1,prog_bar=True)
         self.log('precision',P,prog_bar=True )
