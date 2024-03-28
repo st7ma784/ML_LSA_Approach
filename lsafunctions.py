@@ -1,19 +1,8 @@
 from typing import Callable
-
 import torch
-'''
-This is research code... it is not clean and it is not commented
-
-If you wish to use it for TPUs, I strongly recommend you refactor your code to use this style of function factory.
- Otherwise your runs will be very slow.
-
-This code is a copy of the LSA methods in the LSA notebook, but with the following changes:
-modified to return 1-hot tensors * input so we get a sense of values returned.
-
-'''
 from scipy.optimize import linear_sum_assignment
-
 from functools import partial
+
 def outputconversion(func): #converts the output of a function back to 1-hot tensor
     def wrapper(*args, **kwargs):
         func=kwargs.pop("func")

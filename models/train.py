@@ -168,13 +168,12 @@ class myLightningModule(LightningModule):
             auxloss,R=self.auxlossfn(logitsA.clone().detach(),logitsB.clone().detach(),input.shape[0])
             MSE=self.MSELoss(out.clone().detach(),truth)
             self.log("auxp",R,prog_bar=True)
-
             self.log("auxloss",auxloss,prog_bar=True)
             self.log("MSE",MSE, prog_bar=True)
 
 
         loss,P=self.lossfn(logitsA,logitsB,input.shape[0])
-        F1=2* P*R /P+R
+        F1=2*( P*R) /(P+R)
         self.log('F1',F1,prog_bar=True)
         self.log('precision',P,prog_bar=True )
         self.log('train_loss', loss,enable_graph=False, prog_bar=True)
