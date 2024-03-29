@@ -411,28 +411,28 @@ def recursiveLinearSumAssignment_v2(rewards:torch.Tensor,maximize=True,factor=1)
     return rewards
 def recursiveLinearSumAssignment_v5(rewards:torch.Tensor,maximize=True,factor=2):
     #create tensor of ints
-    output=torch.zeros_like(rewards,dtype=torch.int8)
+    # output=torch.zeros_like(rewards,dtype=torch.int8)
     #print("out1")
     #draw(output)
     #cost_neg,next_highest_fn,comb_fn,final_fn=((1e9,torch.min,torch.add,torch.argmin),(-1e9,torch.max,torch.sub,torch.argmax))[maximize] 
     # remove=torch.zeros_like(rewards,dtype=torch.bool).fill_diagonal_(1).unsqueeze(0).repeat(*tuple([rewards.shape[-1]]+[1]*len(rewards.shape)))
     # col_index=None
     rewards=rewards.clone()
-    dimsizes=torch.tensor(rewards.shape)
-    #select index of the smallest value
-    bigdim=torch.argmax(dimsizes)
+    # dimsizes=torch.tensor(rewards.shape)
+    # #select index of the smallest value
+    # bigdim=torch.argmax(dimsizes)
 
-    small_dim=torch.argmin(dimsizes)
+    # small_dim=torch.argmin(dimsizes)
     for i in range(10):
         cost2=reduceLinearSumAssignment_v2(rewards,maximize=maximize)
         rewards=rewards- (cost2/factor)# can remove
     
-    cutoff=torch.topk(rewards.flatten(),rewards.shape[small_dim]+1,largest=maximize,sorted=True).values[-1]
-    if maximize:
-        output[(rewards>cutoff)]=1
-    else:
-        output[(rewards<cutoff)]=1
-    return output
+    # cutoff=torch.topk(rewards.flatten(),rewards.shape[small_dim]+1,largest=maximize,sorted=True).values[-1]
+    # if maximize:
+    #     output[(rewards>cutoff)]=1
+    # else:
+    #     output[(rewards<cutoff)]=1
+    return rewards
 
 
 def recursiveLinearSumAssignment_v3(rewards:torch.Tensor,maximize=True,factor=1):

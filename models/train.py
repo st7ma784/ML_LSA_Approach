@@ -67,25 +67,24 @@ class MyDNNModel(nn.Module):
         
     def forward(self,x):
         x=self.model(x)
-        return self.sm(x)        
+        return x        
 
 class MyLSAModel(nn.Module):
     def __init__(self,h,w,model,softmax):
         super().__init__()
         self.h,self.w=h,w
         self.alg=get_all_LSA_fns()[model] 
-        self.bias=nn.Parameter(torch.ones(self.h,self.w))
+        self.bias=nn.Parameter(torch.zeros(1))
         self.sm=nn.Softmax(dim=1 if self.w<self.h else 2) if softmax=="softmax" else GUMBELSoftMax(dim=1 if self.w<self.h else 2)
-
     def forward(self,x):
         
         out=torch.stack([self.alg(i,maximize=True) for i in x],dim=0)
         if out.shape==x.permute(0,2,1).shape:
             out=out.permute(0,2,1)
         out=torch.nan_to_num(out)
-        out=out/torch.norm(out,keepdim=True)
+        #out=out/torch.norm(out,keepdim=True)
 
-        out=out*self.bias
+        out=out+self.bias
         return self.sm(out)
 
 class myLightningModule(LightningModule):
@@ -146,12 +145,19 @@ class myLightningModule(LightningModule):
         return self.model(input)
     def hloss(self,A,B):
         P=torch.mean(torch.diagonal(B,dim1=1,dim2=2))
-        return self.loss(B,torch.diag_embed(torch.ones(B.shape[-1],device=self.device)).unsqueeze(0).repeat(B.shape[0],1,1)),P
+        lossA=self.loss(B,torch.arange(B.shape[-1],device=self.device).unsqueeze(0).repeat(B.shape[0],1))
+        lossB=self.loss(B.permute(0,2,1),torch.arange(B.shape[-1],device=self.device).unsqueeze(0).repeat(B.shape[0],1))
+        loss=lossA+lossB
+        loss=loss/2
+        return loss,P
     def wloss(self,A,B):
         P=torch.mean(torch.diagonal(A,dim1=1,dim2=2))
 
-        return self.loss(A,torch.diag_embed(torch.ones(A.shape[-1],device=self.device)).unsqueeze(0).repeat(A.shape[0],1,1)),P
-  
+        lossA= self.loss(A,torch.arange(A.shape[-1],device=self.device).unsqueeze(0).repeat(A.shape[0],1))
+        lossB=self.loss(A.permute(0,2,1),torch.arange(A.shape[-1],device=self.device).unsqueeze(0).repeat(A.shape[0],1))
+        loss=lossA+lossB
+        loss=loss/2
+        return loss,P
     def training_step(self, batch, batch_idx):
         #The batch is collated for you, so just seperate it here and calculate loss. 
         #By default, PTL handles optimization and scheduling and logging steps. so All you have to focus on is functionality. Here's an example...
