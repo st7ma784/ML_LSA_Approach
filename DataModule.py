@@ -13,10 +13,7 @@ def outputconversion(func): #converts the output of a function back to 1-hot ten
         output=torch.zeros_like(x) + 1e-8
 
         x1,y1=func(x, *args, **kwargs)
-        try:
-            output[x1,y1]=1
-        except:
-            output[y1,x1]=1
+        output[x1,y1]=1
         return output
     return partial(wrapper,func=func)
 LSA=outputconversion(linear_sum_assignment)
