@@ -11,11 +11,8 @@ def outputconversion(func): #converts the output of a function back to 1-hot ten
         output=torch.zeros_like(x)
 
         x1,y1=func(x, *args, **kwargs)
-        try:
-            output[x1,y1]=1
-        except:
-            output[y1,x1]=1
-        return output
+        output[x1,y1]=1
+        return output*100
     
     return partial(wrapper,func=func)
 def to_device(tensor,device):
@@ -65,7 +62,7 @@ def get_all_LSA_fns():
 
 
 def stock_lsa(TruthTensor,maximize=True):
-    return linear_sum_assignment(TruthTensor.detach().cpu(),maximize=maximize)
+    return linear_sum_assignment(TruthTensor.cpu(),maximize=maximize)
 def MyLSA(TruthTensor, maximize=True,lookahead=2):
     '''
     If Maximize is False, I'm trying to minimize the costs. 

@@ -74,6 +74,7 @@ class MyLSAModel(nn.Module):
         self.h,self.w=h,w
         self.alg=get_all_LSA_fns()[model] 
         self.bias=nn.Parameter(torch.zeros(1))
+        self.scale=nn.Parameter(torch.ones(1)*10)
         self.sm=nn.Softmax(dim=1 if self.w<self.h else 2) if softmax=="softmax" else GUMBELSoftMax(dim=1 if self.w<self.h else 2)
     def forward(self,x):
         
@@ -82,7 +83,7 @@ class MyLSAModel(nn.Module):
             out=out.permute(0,2,1)
         out=torch.nan_to_num(out)
         #out=out/torch.norm(out,keepdim=True)
-
+        out=out*self.scale
         out=out+self.bias
         return self.sm(out)
 
