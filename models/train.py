@@ -83,7 +83,7 @@ class MyLSAModel(nn.Module):
         if out.shape==x.permute(0,2,1).shape:
             out=out.permute(0,2,1)
         out=torch.nan_to_num(out)
-        out=out/torch.norm(out,p=2,keepdim=True)
+        out=out/torch.norm(out,keepdim=True)
 
         out=out*self.bias
         return self.sm(out)
