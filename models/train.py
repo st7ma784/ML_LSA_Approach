@@ -67,7 +67,7 @@ class MyDNNModel(nn.Module):
         
     def forward(self,x):
         x=self.model(x)
-        return x        
+        return self.sm(x)       
 
 class MyLSAModel(nn.Module):
     def __init__(self,h,w,model,softmax):
