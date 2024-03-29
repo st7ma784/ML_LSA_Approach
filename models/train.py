@@ -34,7 +34,6 @@ class MyTrModel(nn.Module):
                Permute(),
                torch.nn.TransformerEncoderLayer(h,1,dim_feedforward=4*h,activation=activation,batch_first=True),
                Permute(),
-               nn.Softmax(dim=1 if w<h else 2)
                ]*layers
         self.model=nn.Sequential(*layer)
     def forward(self,x):
