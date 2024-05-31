@@ -111,7 +111,7 @@ class myLightningModule(LightningModule):
         self.h,self.w=size
         self.model=MyTrModel(self.h,self.w,softmax=softmax,activation=activation,layers=layers)
         
-        self.max_epochs=100
+        self.max_epochs=1000
         if model=="linear":
             self.model=MyDNNModel(self.h,self.w,softmax=softmax,activation=activation,layers=layers)
         elif model in get_all_LSA_fns():
